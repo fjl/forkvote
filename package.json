@@ -1,0 +1,13 @@
+{
+  "name": "forkvote",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "async": "^2.0.0",
+    "web3": "^0.17.0-alpha"
+  },
+  "devDependencies": {},
+  "author": "Felix Lange <fjl@ethereum.org>",
+  "license": "MIT"
+}
