@@ -21,6 +21,10 @@ var blacklist = {
 	'0x2a65aca4d5fc5b5c859090a6c34d164135398226': "DwarfPool1"
 }
 
+// Creation blockNumber of yes contract, see
+// http://etherscan.io/address/0x3039d0a94d51c67a4f35e742b571874e53467804
+var startBlock = 1836214;
+
 function voteName(log) {
 	if (log.address == yes.address)
 		return "YES"
@@ -32,7 +36,7 @@ function voteName(log) {
 
 function getVotes(voteName, contract, latestBlock, callback) {
 	var filter = contract.LogVote({}, {
-		fromBlock: latestBlock.number - 600000,
+		fromBlock: startBlock,
 		toBlock: latestBlock.number
 	});
 	filter.get((err, votes) => {
