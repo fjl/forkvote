@@ -9,16 +9,16 @@ var yes = contract.at("0x3039d0a94d51c67a4f35e742b571874e53467804");
 var no = contract.at("0x58dd96aa829353032a21c95733ce484b949b2849");
 
 var blacklist = {
-	'0xd94c9ff168dc6aebf9b6cc86deff54f3fb0afc33': "Yunbi",
-	'0x2910543af39aba0cd09dbb2d50200b3e800a63d2': "Kraken",
-	'0x32be343b94f860124dc4fee278fdcbd38c102d88': "Poloniex",
-	'0xcafb10ee663f465f9d10588ac44ed20ed608c11e': "Bitfinex",
-	'0x91337a300e0361bddb2e377dd4e88ccb7796663d': "BTC-e",
-	'0xf4fe90e63f2a90710bcc0c00f38812c4a882f2ff': "BitcoinToYou",
-	'0x120a270bbc009644e35f0bb6ab13f95b8199c4ad': "Shapeshift1",
-	'0x9e6316f44baeeee5d41a1070516cc5fa47baf227': "Shapeshift2",
-	'0x61c808d82a3ac53231750dadc13c777b59310bd9': "f2pool",
-	'0x2a65aca4d5fc5b5c859090a6c34d164135398226': "DwarfPool1"
+	"0xd94c9ff168dc6aebf9b6cc86deff54f3fb0afc33": "Yunbi",
+	"0x2910543af39aba0cd09dbb2d50200b3e800a63d2": "Kraken",
+	"0x32be343b94f860124dc4fee278fdcbd38c102d88": "Poloniex",
+	"0xcafb10ee663f465f9d10588ac44ed20ed608c11e": "Bitfinex",
+	"0x91337a300e0361bddb2e377dd4e88ccb7796663d": "BTC-e",
+	"0xf4fe90e63f2a90710bcc0c00f38812c4a882f2ff": "BitcoinToYou",
+	"0x120a270bbc009644e35f0bb6ab13f95b8199c4ad": "Shapeshift1",
+	"0x9e6316f44baeeee5d41a1070516cc5fa47baf227": "Shapeshift2",
+	"0x61c808d82a3ac53231750dadc13c777b59310bd9": "f2pool",
+	"0x2a65aca4d5fc5b5c859090a6c34d164135398226": "DwarfPool1",
 }
 
 // Start counting at the creation blockNumber of yes contract, see
@@ -101,13 +101,13 @@ function printVoteSum() {
 		block: (callback) => {
 			web3.eth.getBlock("latest", callback);
 		},
-		yesVotes: ['block', (results, callback) => {
+		yesVotes: ["block", (results, callback) => {
 			getVotes("YES", yes, results.block, callback);
 		}],
-		noVotes: ['block', (results, callback) => {
+		noVotes: ["block", (results, callback) => {
 			getVotes("NO", no, results.block, callback);
 		}],
-		sum: ['block', 'yesVotes', 'noVotes', (results, callback) => {
+		sum: ["block", "yesVotes", "noVotes", (results, callback) => {
 			var voteMap = mergeVotes(results.yesVotes, results.noVotes);
 			sumBalances(results.block, voteMap, callback);
 		}],
