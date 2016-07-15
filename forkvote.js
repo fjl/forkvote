@@ -63,10 +63,10 @@ function mergeVotes(yesVotes, noVotes) {
 			console.log("ignoring", voteName(vote), "vote from blacklisted account", blacklist[voter], "at block", vote.blockNumber);
 			return;
 		}
-		// Keep the earliest vote.
+		// Keep the last vote.
 		if (voteMap[voter]) {
 			numDoubleVotes++;
-			if (vote.blockNumber > voteMap[voter].blockNumber)
+			if (vote.blockNumber < voteMap[voter].blockNumber)
 				return;
 		}
 		voteMap[voter] = vote;
