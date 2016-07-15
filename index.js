@@ -2,6 +2,7 @@ var Web3 = require("web3");
 var net = require("net");
 var BigNumber = require("bignumber.js");
 var async = require("async");
+var https = require("https");
 
 var web3 = new Web3(new Web3.providers.IpcProvider("/home/fjl/.ethereum/geth.ipc", net));
 var contract = web3.eth.contract([{"anonymous":false,"inputs":[{"indexed":true,"name":"addr","type":"address"}],"name":"LogVote","type":"event"}]);
@@ -96,10 +97,37 @@ function sumBalances(block, voteMap, callback) {
 	});
 }
 
+// getTotalSupply retrieves the total ether supply from etherchain.org.
+function getTotalSupply(callback) {
+	var options = {method: "GET", hostname: "etherchain.org", port: 443, path: "/api/supply"};
+	var req = https.request(options, function(res) {
+		res.setEncoding('utf8');
+		res.on('data', function (data) {
+			var supply;
+			try {
+				var obj = JSON.parse(data);
+				if (!obj.data || !obj.data[0] || !obj.data[0].supply) {
+					console.log("invalid response from etherchain:", obj);
+					return callback(new Error("response doesn't contain supply"));
+				}
+				supply = new BigNumber(web3.toWei(obj.data[0].supply, "ether"));
+			} catch (e) {
+				return callback(err);
+			}
+			callback(null, supply);
+		});
+	});
+	req.on('error', callback);
+	req.end();
+}
+
 function printVoteSum() {
 	async.auto({
 		block: (callback) => {
 			web3.eth.getBlock("latest", callback);
+		},
+		supply: (callback) => {
+			getTotalSupply(callback);
 		},
 		yesVotes: ["block", (results, callback) => {
 			getVotes("YES", yes, results.block, callback);
@@ -116,9 +144,12 @@ function printVoteSum() {
 			console.error(err);
 			process.exit(1);
 		} else {
+			var total = results.sum.yes.add(results.sum.no);
+			var supplyPercent = total.div(results.supply).mul(100);
 			console.log("*** Result at block", results.block.number)
-			console.log("YES", web3.fromWei(results.sum.yes).toString(), "ether");
-			console.log("NO ", web3.fromWei(results.sum.no).toString(), "ether");
+			console.log("TOTAL AMOUNT:", web3.fromWei(total).toString(), "ether (" + supplyPercent.toPrecision(5) + "% of all ether)");
+			console.log("         YES:", web3.fromWei(results.sum.yes).toString(), "ether");
+			console.log("          NO:", web3.fromWei(results.sum.no).toString(), "ether");
 			process.exit(0);
 		}
 	});
