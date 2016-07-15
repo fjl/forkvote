@@ -20,6 +20,7 @@ var blacklist = {
 	"0x9e6316f44baeeee5d41a1070516cc5fa47baf227": "Shapeshift2",
 	"0x61c808d82a3ac53231750dadc13c777b59310bd9": "f2pool",
 	"0x2a65aca4d5fc5b5c859090a6c34d164135398226": "DwarfPool1",
+	"0xd24400ae8bfebb18ca49be86258a3c749cf46853": "Gemini",
 }
 
 // Start counting at the creation blockNumber of yes contract, see
