@@ -21,8 +21,11 @@ var blacklist = {
 	'0x2a65aca4d5fc5b5c859090a6c34d164135398226': "DwarfPool1"
 }
 
-// Creation blockNumber of yes contract, see
-// http://etherscan.io/address/0x3039d0a94d51c67a4f35e742b571874e53467804
+// Start counting at the creation blockNumber of yes contract, see
+// http://etherscan.io/tx/0x81784fed3729b8865e90c9731167838efb14edd461599e06d9e570ece0c49980
+//
+// The no contract was created a few blocks later in
+// http://etherscan.io/tx/0xf75f0e757bb683892b03af3e958bb657302462aaf53a89e18adf57df609037ab
 var startBlock = 1836214;
 
 function voteName(log) {
