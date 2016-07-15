@@ -55,35 +55,35 @@ function sumVotes(block, yesVotes, noVotes, callback) {
 	}
 	var earliest = {};
 
-	function handleLog(log, asyncDone) {
-		var voter = log.args.addr;
+	function handleLog(vote, asyncDone) {
+		var voter = vote.args.addr;
 
 		// Ignore blacklisted voters.
 		if (blacklist[voter]) {
-			console.log("ignoring blacklisted vote", voteName(log), "from", blacklist[voter], "at block", log.blockNumber);
+			console.log("ignoring blacklisted vote", voteName(vote), "from", blacklist[voter], "at block", vote.blockNumber);
 			return asyncDone();
 		}
 
 		// Prevent double votes.
 		var prevVote = earliest[voter];
-		if (prevVote && prevVote.blockNumber < log.blockNumber) {
-			console.log("ignoring double vote", voteName(log), "from", voter, "at block", log.blockNumber);
+		if (prevVote && prevVote.blockNumber < vote.blockNumber) {
+			console.log("ignoring double vote", voteName(vote), "from", voter, "at block", vote.blockNumber);
 			console.log("	earlier vote was", voteName(prevVote), "at block", prevVote.blockNumber);
 			return asyncDone();
 		}
-		earliest[voter] = log;
+		earliest[voter] = vote;
 
 		// Add the balance to the right bucket.
 		web3.eth.getBalance(voter, block.number, function (err, balance) {
 			if (err)
 				return asyncDone(err);
-			else if (log.address == yes.address)
+			else if (vote.address == yes.address)
 				totals.yes = totals.yes.add(balance);
-			else if (log.address == no.address)
+			else if (vote.address == no.address)
 				totals.no = totals.no.add(balance);
 			else
-				console.log("ignoring non-fork vote", log);
-			asyncDone(null);
+				console.log("ignoring non-fork vote", vote);
+			asyncDone();
 		});
 	}
 
