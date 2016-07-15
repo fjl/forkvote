@@ -1,12 +1,13 @@
-var Web3       = require("web3");
-var net        = require("net");
-var BigNumber  = require("bignumber.js");
-var async      = require("async");
+var Web3 = require("web3");
+var net = require("net");
+var BigNumber = require("bignumber.js");
+var async = require("async");
 
-var web3       = new Web3(new Web3.providers.IpcProvider("/home/fjl/.ethereum/geth.ipc", net));
-var contract   = web3.eth.contract([{"anonymous":false,"inputs":[{"indexed":true,"name":"addr","type":"address"}],"name":"LogVote","type":"event"}]);
-var yes        = contract.at("0x3039d0a94d51c67a4f35e742b571874e53467804");
-var no         = contract.at("0x58dd96aa829353032a21c95733ce484b949b2849");
+var web3 = new Web3(new Web3.providers.IpcProvider("/home/fjl/.ethereum/geth.ipc", net));
+var contract = web3.eth.contract([{"anonymous":false,"inputs":[{"indexed":true,"name":"addr","type":"address"}],"name":"LogVote","type":"event"}]);
+var yes = contract.at("0x3039d0a94d51c67a4f35e742b571874e53467804");
+var no = contract.at("0x58dd96aa829353032a21c95733ce484b949b2849");
+
 var blacklist = {
 	'0xd94c9ff168dc6aebf9b6cc86deff54f3fb0afc33': "Yunbi",
 	'0x2910543af39aba0cd09dbb2d50200b3e800a63d2': "Kraken",
