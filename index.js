@@ -44,7 +44,8 @@ function getVotes(voteName, contract, latestBlock, callback) {
 		toBlock: latestBlock.number
 	});
 	filter.get((err, votes) => {
-		console.log("found", votes.length, voteName, "vote events");
+		if (!err)
+			console.log("found", votes.length, voteName, "vote events");
 		callback(err, votes);
 	});
 }
