@@ -43,77 +43,80 @@ function getVotes(voteName, contract, latestBlock, callback) {
 		toBlock: latestBlock.number
 	});
 	filter.get((err, votes) => {
-		console.log("found", votes.length, voteName, "votes");
+		console.log("found", votes.length, voteName, "vote events");
 		callback(err, votes);
 	});
 }
 
-function sumVotes(block, yesVotes, noVotes, callback) {
-	var totals = {
-		yes: new BigNumber(0),
-		no:  new BigNumber(0)
-	}
-	var earliest = {};
-
-	function handleLog(vote, asyncDone) {
+// mergeVotes creates a map containing the earliest vote
+// for each address. It also filters out votes sent by blacklisted addresses.
+function mergeVotes(yesVotes, noVotes) {
+	var voteMap = {};
+	var numDoubleVotes = 0;
+	function insert(vote) {
 		var voter = vote.args.addr;
-
-		// Ignore blacklisted voters.
+		// Apply the blacklist.
 		if (blacklist[voter]) {
-			console.log("ignoring blacklisted vote", voteName(vote), "from", blacklist[voter], "at block", vote.blockNumber);
-			return asyncDone();
+			console.log("ignoring", voteName(vote), "vote from blacklisted account", blacklist[voter], "at block", vote.blockNumber);
+			return;
 		}
-
-		// Prevent double votes.
-		var prevVote = earliest[voter];
-		if (prevVote && prevVote.blockNumber < vote.blockNumber) {
-			console.log("ignoring double vote", voteName(vote), "from", voter, "at block", vote.blockNumber);
-			console.log("	earlier vote was", voteName(prevVote), "at block", prevVote.blockNumber);
-			return asyncDone();
+		// Keep the earliest vote.
+		if (voteMap[voter]) {
+			numDoubleVotes++;
+			if (vote.blockNumber > voteMap[voter].blockNumber)
+				return;
 		}
-		earliest[voter] = vote;
-
-		// Add the balance to the right bucket.
-		web3.eth.getBalance(voter, block.number, function (err, balance) {
-			if (err)
-				return asyncDone(err);
-			else if (vote.address == yes.address)
-				totals.yes = totals.yes.add(balance);
-			else if (vote.address == no.address)
-				totals.no = totals.no.add(balance);
-			else
-				console.log("ignoring non-fork vote", vote);
-			asyncDone();
-		});
+		voteMap[voter] = vote;
 	}
 
-	async.series([
-		(cb) => async.eachLimit(yesVotes, 10, handleLog, cb),
-		(cb) => async.eachLimit(noVotes, 10, handleLog, cb),
-	], (err) => {
+	yesVotes.forEach(insert);
+	noVotes.forEach(insert);
+	console.log("found", numDoubleVotes, "double votes");
+	return voteMap;
+}
+
+// sumBalances sums up the balances of all voters in voteMap.
+function sumBalances(block, voteMap, callback) {
+	var totals = {yes: new BigNumber(0), no: new BigNumber(0)}
+	async.eachLimit(Object.getOwnPropertyNames(voteMap), 10, (voter, asyncDone) => {
+		var vote = voteMap[voter];
+		web3.eth.getBalance(voter, block.number, (err, balance) => {
+			if (!err) {
+				if (vote.address == yes.address)
+					totals.yes = totals.yes.add(balance);
+				else if (vote.address == no.address)
+					totals.no = totals.no.add(balance);
+				else
+					console.log("ignoring non-fork vote", vote);
+			}
+			asyncDone(err);
+		});
+	}, (err) => {
 		callback(err, totals);
 	});
 }
 
 function printVoteSum() {
 	async.auto({
-		latestBlock: (callback) => {
+		block: (callback) => {
 			web3.eth.getBlock("latest", callback);
 		},
-		yesVotes: ['latestBlock', (results, callback) => {
-			getVotes("yes", yes, results.latestBlock, callback);
+		yesVotes: ['block', (results, callback) => {
+			getVotes("YES", yes, results.block, callback);
 		}],
-		noVotes: ['latestBlock', (results, callback) => {
-			getVotes("no", no, results.latestBlock, callback);
+		noVotes: ['block', (results, callback) => {
+			getVotes("NO", no, results.block, callback);
 		}],
-		sum: ['latestBlock', 'yesVotes', 'noVotes', (results, callback) => {
-			sumVotes(results.latestBlock, results.yesVotes, results.noVotes, callback);
+		sum: ['block', 'yesVotes', 'noVotes', (results, callback) => {
+			var voteMap = mergeVotes(results.yesVotes, results.noVotes);
+			sumBalances(results.block, voteMap, callback);
 		}],
 	}, (err, results) => {
 		if (err) {
 			console.error(err);
 			process.exit(1);
 		} else {
+			console.log("*** Result at block", results.block.number)
 			console.log("YES", web3.fromWei(results.sum.yes).toString(), "ether");
 			console.log("NO ", web3.fromWei(results.sum.no).toString(), "ether");
 			process.exit(0);
