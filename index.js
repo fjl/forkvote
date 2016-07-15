@@ -99,12 +99,13 @@ function sumBalances(block, voteMap, callback) {
 }
 
 // getTotalSupply retrieves the total ether supply from etherchain.org.
+// If etherchain is not available, the callback receives zero.
 function getTotalSupply(callback) {
+	var supply = new BigNumber(0);
 	var options = {method: "GET", hostname: "etherchain.org", port: 443, path: "/api/supply"};
 	var req = https.request(options, function(res) {
 		res.setEncoding('utf8');
-		res.on('data', function (data) {
-			var supply;
+		res.on('data', (data) => {
 			try {
 				var obj = JSON.parse(data);
 				if (!obj.data || !obj.data[0] || !obj.data[0].supply) {
@@ -118,11 +119,35 @@ function getTotalSupply(callback) {
 			callback(null, supply);
 		});
 	});
-	req.on('error', callback);
+	req.on('error', () => {
+		callback(null, supply);
+	});
 	req.end();
 }
 
-function printVoteSum() {
+function percent(amount, whole) {
+	return amount.div(whole).mul(100).toPrecision(3) + "%";
+}
+
+function printVoteResult(results) {
+	var voteTotal = results.sum.yes.add(results.sum.no);
+	var yesEther = web3.fromWei(results.sum.yes).toString();
+	var yesPercent = percent(results.sum.yes, voteTotal);
+	var noEther = web3.fromWei(results.sum.no).toString();
+	var noPercent = percent(results.sum.no, voteTotal);
+
+	// Add info about voter participation if etherchain was reachable.
+	var supplyPercent = "";
+	if (!results.supply.isZero())
+		supplyPercent = " (" + percent(voteTotal, results.supply) + " of all ether)";
+
+	console.log("*** Result at block", results.block.number)
+	console.log("TOTAL AMOUNT:", web3.fromWei(voteTotal).toString(), "ether" + supplyPercent);
+	console.log("         YES:", yesEther, "ether", "(" + yesPercent + ")");
+	console.log("          NO:", noEther, "ether", "(" + noPercent + ")");
+}
+
+function main() {
 	async.auto({
 		block: (callback) => {
 			web3.eth.getBlock("latest", callback);
@@ -142,18 +167,13 @@ function printVoteSum() {
 		}],
 	}, (err, results) => {
 		if (err) {
-			console.error(err);
+			console.log(err.stack);
 			process.exit(1);
 		} else {
-			var total = results.sum.yes.add(results.sum.no);
-			var supplyPercent = total.div(results.supply).mul(100);
-			console.log("*** Result at block", results.block.number)
-			console.log("TOTAL AMOUNT:", web3.fromWei(total).toString(), "ether (" + supplyPercent.toPrecision(5) + "% of all ether)");
-			console.log("         YES:", web3.fromWei(results.sum.yes).toString(), "ether");
-			console.log("          NO:", web3.fromWei(results.sum.no).toString(), "ether");
+			printVoteResult(results);
 			process.exit(0);
 		}
 	});
 }
 
-printVoteSum();
+main();
