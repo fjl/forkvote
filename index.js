@@ -109,10 +109,10 @@ function getTotalSupply(callback) {
 				var obj = JSON.parse(data);
 				if (!obj.data || !obj.data[0] || !obj.data[0].supply) {
 					console.log("invalid response from etherchain:", obj);
-					return callback(new Error("response doesn't contain supply"));
+					throw new Error("etherchain API response doesn't contain supply");
 				}
 				supply = new BigNumber(web3.toWei(obj.data[0].supply, "ether"));
-			} catch (e) {
+			} catch (err) {
 				return callback(err);
 			}
 			callback(null, supply);
