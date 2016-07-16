@@ -28,7 +28,8 @@ var blacklist = {
 //
 // The no contract was created a few blocks later in
 // http://etherscan.io/tx/0xf75f0e757bb683892b03af3e958bb657302462aaf53a89e18adf57df609037ab
-var startBlock = 1836214;
+var votingStartBlock = 1836214;
+var votingEndBlock = 1894000;
 
 function voteName(log) {
 	if (log.address == yes.address)
@@ -39,11 +40,8 @@ function voteName(log) {
 		return log.address
 }
 
-function getVotes(voteName, contract, latestBlock, callback) {
-	var filter = contract.LogVote({}, {
-		fromBlock: startBlock,
-		toBlock: latestBlock.number
-	});
+function getVotes(startBlock, endBlock, voteName, contract, callback) {
+	var filter = contract.LogVote({}, {fromBlock: startBlock, toBlock: endBlock});
 	filter.get((err, votes) => {
 		if (!err)
 			console.log("found", votes.length, voteName, "vote events");
@@ -78,12 +76,26 @@ function mergeVotes(yesVotes, noVotes) {
 	return voteMap;
 }
 
-// sumBalances sums up the balances of all voters in voteMap.
-function sumBalances(block, voteMap, callback) {
+// sumBalances computes the sum of the balances of all given addresses.
+function sumBalances(blockNumber, addresses, callback) {
+	var total = new BigNumber(0);
+	async.eachLimit(addresses, 10, (addr, asyncDone) => {
+		web3.eth.getBalance(addr, blockNumber, (err, balance) => {
+			if (!err)
+				total = total.add(balance);
+			asyncDone(err);
+		});
+	}, (err) => {
+		callback(err, total);
+	});
+}
+
+// tallyVotes sums up the balances of all voters in voteMap.
+function tallyVotes(blockNumber, voteMap, callback) {
 	var totals = {yes: new BigNumber(0), no: new BigNumber(0)}
 	async.eachLimit(Object.getOwnPropertyNames(voteMap), 10, (voter, asyncDone) => {
 		var vote = voteMap[voter];
-		web3.eth.getBalance(voter, block.number, (err, balance) => {
+		web3.eth.getBalance(voter, blockNumber, (err, balance) => {
 			if (!err) {
 				if (vote.address == yes.address)
 					totals.yes = totals.yes.add(balance);
@@ -131,40 +143,52 @@ function percent(amount, whole) {
 }
 
 function printVoteResult(results) {
-	var voteTotal = results.sum.yes.add(results.sum.no);
-	var yesEther = web3.fromWei(results.sum.yes).toString();
-	var yesPercent = percent(results.sum.yes, voteTotal);
-	var noEther = web3.fromWei(results.sum.no).toString();
-	var noPercent = percent(results.sum.no, voteTotal);
+	var voteTotal = results.voteBalances.yes.add(results.voteBalances.no);
+	var yesEther = web3.fromWei(results.voteBalances.yes).toString();
+	var yesPercent = percent(results.voteBalances.yes, voteTotal);
+	var noEther = web3.fromWei(results.voteBalances.no).toString();
+	var noPercent = percent(results.voteBalances.no, voteTotal);
+
+	console.log("*** Result at block", results.endBlockNumber);
+	console.log("          YES:", yesEther, "ether", "(" + yesPercent + ")");
+	console.log("           NO:", noEther, "ether", "(" + noPercent + ")");
+	console.log(" TOTAL AMOUNT:", web3.fromWei(voteTotal).toString(), "ether");
 
 	// Add info about voter participation if etherchain was reachable.
-	var supplyPercent = "";
-	if (!results.supply.isZero())
-		supplyPercent = " (" + percent(voteTotal, results.supply) + " of all ether)";
-
-	console.log("*** Result at block", results.block.number)
-	console.log("TOTAL AMOUNT:", web3.fromWei(voteTotal).toString(), "ether" + supplyPercent);
-	console.log("         YES:", yesEther, "ether", "(" + yesPercent + ")");
-	console.log("          NO:", noEther, "ether", "(" + noPercent + ")");
+	if (!results.supply.isZero()) {
+		var p = percent(voteTotal, results.supply);
+		var p2 = percent(voteTotal, results.supply.sub(results.blacklistBalance));
+		console.log("PARTICIPATION:", p, "of all ether", "(" + p2, "excluding blacklist)");
+	}
 }
 
 function main() {
 	async.auto({
-		block: (callback) => {
-			web3.eth.getBlock("latest", callback);
+		endBlockNumber: (callback) => {
+			web3.eth.getBlock("latest", (err, block) => {
+				if (err)
+					return callback(err);
+				if (block.number > votingEndBlock)
+					return callback(null, votingEndBlock);
+				callback(null, block.number);
+			});
 		},
 		supply: (callback) => {
 			getTotalSupply(callback);
 		},
-		yesVotes: ["block", (results, callback) => {
-			getVotes("YES", yes, results.block, callback);
+		yesVotes: ["endBlockNumber", (results, callback) => {
+			getVotes(votingStartBlock, results.endBlockNumber, "YES", yes, callback);
 		}],
-		noVotes: ["block", (results, callback) => {
-			getVotes("NO", no, results.block, callback);
+		noVotes: ["endBlockNumber", (results, callback) => {
+			getVotes(votingStartBlock, results.endBlockNumber, "NO", no, callback);
 		}],
-		sum: ["block", "yesVotes", "noVotes", (results, callback) => {
+		voteBalances: ["endBlockNumber", "yesVotes", "noVotes", (results, callback) => {
 			var voteMap = mergeVotes(results.yesVotes, results.noVotes);
-			sumBalances(results.block, voteMap, callback);
+			tallyVotes(results.endBlockNumber, voteMap, callback);
+		}],
+		blacklistBalance: ["endBlockNumber", (results, callback) => {
+			var addrs = Object.getOwnPropertyNames(blacklist);
+			sumBalances(results.endBlockNumber, addrs, callback);
 		}],
 	}, (err, results) => {
 		if (err) {
